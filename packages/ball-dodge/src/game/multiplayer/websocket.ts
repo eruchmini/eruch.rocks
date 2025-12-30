@@ -1,28 +1,113 @@
 // ABOUTME: WebSocket client for multiplayer functionality
 // ABOUTME: Manages real-time communication and game state synchronization
-// @ts-nocheck
 import { GAME_CONFIG } from '../constants';
 import { FallingBall } from '../classes/FallingBall';
 
+interface NetworkBallData {
+  id: string;
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  radius: number;
+  isShield: boolean;
+  isPurple: boolean;
+  isTracking: boolean;
+  isBouncing: boolean;
+}
+
+interface BaseMessage {
+  type: string;
+  id: string;
+}
+
+interface RequestSyncMessage extends BaseMessage {
+  type: 'request_sync';
+}
+
+interface SyncResponseMessage extends BaseMessage {
+  type: 'sync_response';
+  requesterId: string;
+  balls: NetworkBallData[];
+  gameMasterId: string;
+}
+
+interface GameMasterAnnounceMessage extends BaseMessage {
+  type: 'game_master_announce';
+}
+
+interface BallSpawnMessage extends BaseMessage {
+  type: 'ball_spawn';
+  ball: NetworkBallData;
+}
+
+interface BallUpdateMessage extends BaseMessage {
+  type: 'ball_update';
+  balls: NetworkBallData[];
+}
+
+interface BallDestroyMessage extends BaseMessage {
+  type: 'ball_destroy';
+  ballId: string;
+}
+
+interface PositionMessage extends BaseMessage {
+  type: 'position';
+  x: number;
+  y: number;
+  hasShield: boolean;
+}
+
+interface BlastMessage extends BaseMessage {
+  type: 'blast';
+  x: number;
+  y: number;
+  angle: number;
+}
+
+interface PlayerDiedMessage extends BaseMessage {
+  type: 'player_died';
+}
+
+type NetworkMessage =
+  | RequestSyncMessage
+  | SyncResponseMessage
+  | GameMasterAnnounceMessage
+  | BallSpawnMessage
+  | BallUpdateMessage
+  | BallDestroyMessage
+  | PositionMessage
+  | BlastMessage
+  | PlayerDiedMessage;
+
+interface OtherPlayer {
+  x: number;
+  y: number;
+  targetX: number;
+  targetY: number;
+  hasShield: boolean;
+  lastUpdate: number;
+}
+
 export class MultiplayerManager {
   ws: WebSocket | null;
-  playerIdRef: any;
-  isGameMasterRef: any;
-  gameMasterIdRef: any;
-  ballsRef: any;
-  otherPlayersRef: any;
-  otherBlastsRef: any;
+  playerIdRef: { current: string };
+  isGameMasterRef: { current: boolean };
+  gameMasterIdRef: { current: string | null };
+  ballsRef: { current: FallingBall[] };
+  otherPlayersRef: { current: Record<string, OtherPlayer> };
+  otherBlastsRef: { current: Array<{ x: number; y: number; angle: number; radius: number; speed: number; ownerId: string; createdAt: number }> };
   canvas: HTMLCanvasElement;
   setIsGameMaster: (value: boolean) => void;
-  syncTimeoutRef: { current: any };
+  syncTimeoutRef: { current: ReturnType<typeof setTimeout> | null };
 
   constructor(
-    playerIdRef: any,
-    isGameMasterRef: any,
-    gameMasterIdRef: any,
-    ballsRef: any,
-    otherPlayersRef: any,
-    otherBlastsRef: any,
+    playerIdRef: { current: string },
+    isGameMasterRef: { current: boolean },
+    gameMasterIdRef: { current: string | null },
+    ballsRef: { current: FallingBall[] },
+    otherPlayersRef: { current: Record<string, OtherPlayer> },
+    otherBlastsRef: { current: Array<{ x: number; y: number; angle: number; radius: number; speed: number; ownerId: string; createdAt: number }> },
     canvas: HTMLCanvasElement,
     setIsGameMaster: (value: boolean) => void
   ) {
@@ -95,7 +180,7 @@ export class MultiplayerManager {
     }
   }
 
-  handleMessage(data) {
+  handleMessage(data: NetworkMessage): void {
     switch (data.type) {
       case 'request_sync':
         this.handleRequestSync(data);
@@ -135,7 +220,7 @@ export class MultiplayerManager {
     }
   }
 
-  handleRequestSync(data) {
+  handleRequestSync(data: RequestSyncMessage): void {
     // Someone is asking for sync, if we're game master, send them the state
     if (this.isGameMasterRef.current) {
       this.send({
@@ -148,28 +233,32 @@ export class MultiplayerManager {
     }
   }
 
-  handleSyncResponse(data) {
+  handleSyncResponse(data: SyncResponseMessage): void {
     // Only process if this sync is for us
     if (data.requesterId === this.playerIdRef.current) {
       console.log('Received game state from game master:', data.id);
-      clearTimeout(this.syncTimeoutRef.current);
+      if (this.syncTimeoutRef.current) {
+        clearTimeout(this.syncTimeoutRef.current);
+      }
       this.isGameMasterRef.current = false;
       this.setIsGameMaster(false);
       this.gameMasterIdRef.current = data.gameMasterId;
 
       // Sync balls
-      this.ballsRef.current = data.balls.map(ballData =>
+      this.ballsRef.current = data.balls.map((ballData: NetworkBallData) =>
         FallingBall.fromNetworkData(ballData, this.canvas)
       );
     }
   }
 
-  handleGameMasterAnnounce(data) {
+  handleGameMasterAnnounce(data: GameMasterAnnounceMessage): void {
     this.gameMasterIdRef.current = data.id;
-    clearTimeout(this.syncTimeoutRef.current);
+    if (this.syncTimeoutRef.current) {
+      clearTimeout(this.syncTimeoutRef.current);
+    }
   }
 
-  handleBallSpawn(data) {
+  handleBallSpawn(data: BallSpawnMessage): void {
     // Only clients should process this
     if (!this.isGameMasterRef.current) {
       const ball = FallingBall.fromNetworkData(data.ball, this.canvas);
@@ -177,11 +266,11 @@ export class MultiplayerManager {
     }
   }
 
-  handleBallUpdate(data) {
+  handleBallUpdate(data: BallUpdateMessage): void {
     // Only clients should process this
     if (!this.isGameMasterRef.current) {
-      data.balls.forEach(ballData => {
-        const ball = this.ballsRef.current.find(b => b.id === ballData.id);
+      data.balls.forEach((ballData: NetworkBallData) => {
+        const ball = this.ballsRef.current.find((b: FallingBall) => b.id === ballData.id);
         if (ball) {
           // Store server position as target for smooth interpolation
           if (!ball.serverX) {
@@ -201,21 +290,21 @@ export class MultiplayerManager {
           ball.vy = ballData.vy;
 
           // Store timestamp for interpolation
-          ball.lastServerUpdate = Date.now();
+          (ball as FallingBall & { lastServerUpdate?: number }).lastServerUpdate = Date.now();
         }
       });
     }
   }
 
-  handleBallDestroy(data) {
+  handleBallDestroy(data: BallDestroyMessage): void {
     // Remove ball by ID
-    const index = this.ballsRef.current.findIndex(b => b.id === data.ballId);
+    const index = this.ballsRef.current.findIndex((b: FallingBall) => b.id === data.ballId);
     if (index !== -1) {
       this.ballsRef.current.splice(index, 1);
     }
   }
 
-  handlePosition(data) {
+  handlePosition(data: PositionMessage): void {
     const existing = this.otherPlayersRef.current[data.id];
 
     // If player doesn't exist yet, initialize with direct position
@@ -240,7 +329,7 @@ export class MultiplayerManager {
     }
   }
 
-  handleBlast(data) {
+  handleBlast(data: BlastMessage): void {
     this.otherBlastsRef.current.push({
       x: data.x,
       y: data.y,
@@ -252,7 +341,7 @@ export class MultiplayerManager {
     });
   }
 
-  handlePlayerDied(data) {
+  handlePlayerDied(data: PlayerDiedMessage): void {
     delete this.otherPlayersRef.current[data.id];
 
     // If game master died, assign new game master
@@ -260,7 +349,7 @@ export class MultiplayerManager {
       const remainingPlayers = Object.keys(this.otherPlayersRef.current);
       if (remainingPlayers.length > 0) {
         // Someone else becomes game master
-        this.gameMasterIdRef.current = remainingPlayers[0];
+        this.gameMasterIdRef.current = remainingPlayers[0] || null;
       } else {
         // We become game master
         this.isGameMasterRef.current = true;
@@ -271,7 +360,7 @@ export class MultiplayerManager {
     }
   }
 
-  send(data: any): void {
+  send(data: Record<string, unknown>): void {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify(data));
     }
@@ -297,7 +386,7 @@ export class MultiplayerManager {
     });
   }
 
-  broadcastBallSpawn(ball: any): void {
+  broadcastBallSpawn(ball: FallingBall): void {
     this.send({
       type: 'ball_spawn',
       id: this.playerIdRef.current,
@@ -305,11 +394,11 @@ export class MultiplayerManager {
     });
   }
 
-  broadcastBallUpdate(balls: any[]): void {
+  broadcastBallUpdate(balls: FallingBall[]): void {
     this.send({
       type: 'ball_update',
       id: this.playerIdRef.current,
-      balls: balls.map(ball => ({
+      balls: balls.map((ball: FallingBall) => ({
         id: ball.id,
         x: ball.x,
         y: ball.y,
@@ -343,7 +432,7 @@ export class MultiplayerManager {
     }
   }
 
-  isConnected() {
-    return this.ws && this.ws.readyState === WebSocket.OPEN;
+  isConnected(): boolean {
+    return !!(this.ws && this.ws.readyState === WebSocket.OPEN);
   }
 }
