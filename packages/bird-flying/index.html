@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Bird Flying Game</title>
+</head>
+<body>
+    <div id="instructions">
+        <h2>🐦 Bird Flying Game</h2>
+        <ul>
+            <li><strong>W/↑</strong> - Pitch up</li>
+            <li><strong>S/↓</strong> - Pitch down (dive for speed!)</li>
+            <li><strong>A/←</strong> - Turn left (tilt left)</li>
+            <li><strong>D/→</strong> - Turn right (tilt right)</li>
+            <li><strong>Space</strong> - Speed boost</li>
+            <li><strong>F</strong> - Toggle 1st/3rd person view</li>
+        </ul>
+        <p style="margin-top: 10px; font-size: 12px; opacity: 0.8;">
+            Tip: Dive to gain speed, climb to slow down! Press F to switch camera views.
+        </p>
+    </div>
+
+    <div id="stats">
+        <div>Altitude: <span id="altitude">0</span>m</div>
+        <div>Speed: <span id="speed" class="speed-indicator">0</span></div>
+        <div>Pitch: <span id="pitch">0</span>°</div>
+        <div>Position: <span id="position">0, 0</span></div>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
