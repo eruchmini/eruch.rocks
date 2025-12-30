@@ -17,7 +17,6 @@ document.body.appendChild(renderer.domElement);
 
 // Enhanced sky with gradient
 const skyColor = 0x87CEEB;
-const horizonColor = 0xffffff;
 scene.background = new THREE.Color(skyColor);
 scene.fog = new THREE.FogExp2(0x87CEEB, 0.0015);
 
@@ -158,12 +157,14 @@ ground.receiveShadow = true;
 
 // Add some variation to the ground for terrain effect
 const positions = ground.geometry.attributes.position;
-for (let i = 0; i < positions.count; i++) {
-    const y = Math.random() * 1.5 + Math.sin(i * 0.1) * 0.5;
-    positions.setZ(i, y);
+if (positions) {
+    for (let i = 0; i < positions.count; i++) {
+        const y = Math.random() * 1.5 + Math.sin(i * 0.1) * 0.5;
+        positions.setZ(i, y);
+    }
+    positions.needsUpdate = true;
+    ground.geometry.computeVertexNormals();
 }
-positions.needsUpdate = true;
-ground.geometry.computeVertexNormals();
 
 scene.add(ground);
 
@@ -253,7 +254,7 @@ for (let i = 0; i < 40; i++) {
 }
 
 // Create mountain boundary around the map with variation
-function createMountain(x: number, z: number, width: number, depth: number): THREE.Group {
+function createMountain(x: number, z: number, width: number): THREE.Group {
     const mountain = new THREE.Group();
 
     // Randomize mountain characteristics for variety
@@ -337,14 +338,14 @@ const mountainSpacing = 45; // Reduced spacing to eliminate gaps
 
 // North and South walls
 for (let x = -MAP_SIZE; x <= MAP_SIZE; x += mountainSpacing) {
-    scene.add(createMountain(x, MAP_SIZE, MOUNTAIN_WIDTH, MOUNTAIN_WIDTH));  // North
-    scene.add(createMountain(x, -MAP_SIZE, MOUNTAIN_WIDTH, MOUNTAIN_WIDTH)); // South
+    scene.add(createMountain(x, MAP_SIZE, MOUNTAIN_WIDTH));  // North
+    scene.add(createMountain(x, -MAP_SIZE, MOUNTAIN_WIDTH)); // South
 }
 
 // East and West walls (skip corners to avoid overlap)
 for (let z = -MAP_SIZE + mountainSpacing; z < MAP_SIZE; z += mountainSpacing) {
-    scene.add(createMountain(MAP_SIZE, z, MOUNTAIN_WIDTH, MOUNTAIN_WIDTH));  // East
-    scene.add(createMountain(-MAP_SIZE, z, MOUNTAIN_WIDTH, MOUNTAIN_WIDTH)); // West
+    scene.add(createMountain(MAP_SIZE, z, MOUNTAIN_WIDTH));  // East
+    scene.add(createMountain(-MAP_SIZE, z, MOUNTAIN_WIDTH)); // West
 }
 
 // Camera setup
@@ -464,9 +465,6 @@ function animate(): void {
 
     // Check if bird is near or past the boundary
     if (Math.abs(bird.position.x) > boundaryLimit || Math.abs(bird.position.z) > boundaryLimit) {
-        // Calculate distance from center to determine if we're at the edge
-        const maxDistance = boundaryLimit * Math.sqrt(2); // Diagonal distance
-
         // If too far from center, push bird back to boundary
         if (distanceFromCenter > boundaryLimit) {
             // Normalize position and push back to boundary
@@ -527,9 +525,11 @@ function animate(): void {
 
     // Update motion trail
     trailIndex = (trailIndex + 1) % trailLength;
-    trailPoints[trailIndex].copy(bird.position);
+    trailPoints[trailIndex]?.copy(bird.position);
     trail.geometry.setFromPoints(trailPoints);
-    trail.geometry.attributes.position.needsUpdate = true;
+    if (trail.geometry.attributes.position) {
+        trail.geometry.attributes.position.needsUpdate = true;
+    }
 
     // Camera system - toggle between first-person and third-person
     if (isFirstPerson) {
