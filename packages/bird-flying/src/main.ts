@@ -127,3 +127,127 @@ bird.add(tail);
 
 bird.position.set(0, 15, 0);
 scene.add(bird);
+
+// Motion trail
+const trailPoints: THREE.Vector3[] = [];
+const trailLength = 20;
+for (let i = 0; i < trailLength; i++) {
+    trailPoints.push(new THREE.Vector3(0, 15, 0));
+}
+const trailGeometry = new THREE.BufferGeometry().setFromPoints(trailPoints);
+const trailMaterial = new THREE.LineBasicMaterial({
+    color: 0xFF6B6B,
+    transparent: true,
+    opacity: 0.3,
+    linewidth: 2
+});
+const trail = new THREE.Line(trailGeometry, trailMaterial);
+scene.add(trail);
+
+// Enhanced ground with visible texture
+const groundGeometry = new THREE.PlaneGeometry(500, 500, 50, 50);
+const groundMaterial = new THREE.MeshStandardMaterial({
+    color: 0x4a7c2c,
+    roughness: 0.85,
+    metalness: 0.05
+});
+const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+ground.rotation.x = -Math.PI / 2;
+ground.position.y = 0;
+ground.receiveShadow = true;
+
+// Add some variation to the ground for terrain effect
+const positions = ground.geometry.attributes.position;
+for (let i = 0; i < positions.count; i++) {
+    const y = Math.random() * 1.5 + Math.sin(i * 0.1) * 0.5;
+    positions.setZ(i, y);
+}
+positions.needsUpdate = true;
+ground.geometry.computeVertexNormals();
+
+scene.add(ground);
+
+// Create enhanced clouds
+function createCloud(x: number, y: number, z: number): THREE.Group {
+    const cloud = new THREE.Group();
+    const cloudMaterial = new THREE.MeshStandardMaterial({
+        color: 0xFFFFFF,
+        transparent: true,
+        opacity: 0.7,
+        roughness: 1,
+        metalness: 0
+    });
+
+    for (let i = 0; i < 7; i++) {
+        const cloudPart = new THREE.Mesh(
+            new THREE.SphereGeometry(Math.random() * 2.5 + 1.5, 16, 16),
+            cloudMaterial
+        );
+        cloudPart.position.set(
+            Math.random() * 5 - 2.5,
+            Math.random() * 2 - 1,
+            Math.random() * 5 - 2.5
+        );
+        cloud.add(cloudPart);
+    }
+
+    cloud.position.set(x, y, z);
+    return cloud;
+}
+
+// Add multiple clouds at various heights
+const clouds: THREE.Group[] = [];
+for (let i = 0; i < 30; i++) {
+    const cloud = createCloud(
+        Math.random() * 300 - 150,
+        Math.random() * 40 + 20,
+        Math.random() * 300 - 150
+    );
+    clouds.push(cloud);
+    scene.add(cloud);
+}
+
+// Create enhanced trees/obstacles
+function createTree(x: number, z: number): THREE.Group {
+    const tree = new THREE.Group();
+
+    // Trunk
+    const trunkGeometry = new THREE.CylinderGeometry(0.3, 0.5, 6, 12);
+    const trunkMaterial = new THREE.MeshStandardMaterial({
+        color: 0x6B4423,
+        roughness: 0.9,
+        metalness: 0
+    });
+    const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
+    trunk.position.y = 3;
+    trunk.castShadow = true;
+    trunk.receiveShadow = true;
+    tree.add(trunk);
+
+    // Multiple layers of foliage
+    const foliageMaterial = new THREE.MeshStandardMaterial({
+        color: 0x1a5f1a,
+        roughness: 0.9,
+        metalness: 0
+    });
+
+    for (let i = 0; i < 3; i++) {
+        const foliageGeometry = new THREE.ConeGeometry(2.5 - i * 0.5, 3, 8);
+        const foliage = new THREE.Mesh(foliageGeometry, foliageMaterial);
+        foliage.position.y = 5.5 + i * 1.5;
+        foliage.castShadow = true;
+        tree.add(foliage);
+    }
+
+    tree.position.set(x, 0, z);
+    return tree;
+}
+
+// Add trees with better distribution
+for (let i = 0; i < 40; i++) {
+    const tree = createTree(
+        Math.random() * 300 - 150,
+        Math.random() * 300 - 150
+    );
+    scene.add(tree);
+}
