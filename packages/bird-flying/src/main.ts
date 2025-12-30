@@ -346,3 +346,48 @@ for (let z = -MAP_SIZE + mountainSpacing; z < MAP_SIZE; z += mountainSpacing) {
     scene.add(createMountain(MAP_SIZE, z, MOUNTAIN_WIDTH, MOUNTAIN_WIDTH));  // East
     scene.add(createMountain(-MAP_SIZE, z, MOUNTAIN_WIDTH, MOUNTAIN_WIDTH)); // West
 }
+
+// Camera setup
+camera.position.set(0, 17, -10);
+camera.lookAt(bird.position);
+
+// Game state with momentum system
+const keys: Record<string, boolean> = {};
+let birdYaw = 0; // Horizontal rotation (left/right)
+let birdPitch = 0; // Vertical rotation (up/down)
+let forwardSpeed = 0.3; // Current forward speed
+const minSpeed = 0.15;
+const maxSpeed = 0.8;
+const cruisingSpeed = 0.3; // Natural cruising speed when flying level
+const pitchSpeed = 0.025; // How fast pitch changes
+const yawSpeed = 0.03; // How fast yaw changes
+const pitchDecay = 0.92; // How quickly pitch returns to neutral
+let wingFlap = 0;
+let trailIndex = 0;
+let bankingAngle = 0; // Current tilt angle when turning
+let isFirstPerson = true; // Camera mode: true = first-person, false = third-person
+let previousPosition = new THREE.Vector3(0, 15, 0); // Track previous position for velocity calculation
+
+// Keyboard controls
+window.addEventListener('keydown', (e) => {
+    keys[e.key.toLowerCase()] = true;
+    keys[e.code] = true;
+
+    // Toggle camera mode with F key
+    if (e.key === 'f' || e.key === 'F') {
+        isFirstPerson = !isFirstPerson;
+        console.log('Camera mode:', isFirstPerson ? 'First Person' : 'Third Person');
+    }
+});
+
+window.addEventListener('keyup', (e) => {
+    keys[e.key.toLowerCase()] = false;
+    keys[e.code] = false;
+});
+
+// Handle window resize
+window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+});
