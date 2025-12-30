@@ -51,14 +51,14 @@ packages/game-name/
 ### vite.config.ts Template
 
 ```typescript
-import { defineConfig } from 'vite'
+import { defineConfig } from "vite";
 
 export default defineConfig({
   build: {
-    outDir: '../../dist/game-name',
+    outDir: "../../dist/game-name",
     emptyOutDir: true,
   },
-})
+});
 ```
 
 Replace `game-name` with the actual game name in both the outDir and package.json name.
@@ -66,22 +66,26 @@ Replace `game-name` with the actual game name in both the outDir and package.jso
 ## Development Workflow
 
 **Run dev server for a specific game:**
+
 ```bash
 cd packages/game-name
 pnpm dev
 ```
 
-**Run all dev servers in parallel:**
+**Run all dev servers in parallel:** (generally not used, we work on one component at a time.)
+
 ```bash
 pnpm dev
 ```
 
 **Typecheck all packages:**
+
 ```bash
 pnpm typecheck
 ```
 
 **Build all packages:**
+
 ```bash
 pnpm build
 ```
@@ -96,29 +100,12 @@ pnpm build
 
 ## Deployment
 
-The main branch deploys to: **https://eruchrocks.eruchmini2.workers.dev**
+The main branch deploys to: **https://eruchrocks.eruchmini2.workers.dev** currently.
 
 Cloudflare Pages is configured via `wrangler.jsonc`:
+
 - Build command: `pnpm install && pnpm run build`
 - Build output directory: `dist`
 - Static assets are served from the `dist/` directory
 
 Each PR gets a preview deployment for testing before merge.
-
-## Development vs Production
-
-**Important:** In development mode, each package runs its own dev server on different ports:
-- Homepage: `http://localhost:5173`
-- Clicker: `http://localhost:5174`
-
-This means links between packages (like `/clicker/`) won't work in dev mode. You must test the production build to verify routing works correctly.
-
-To test the production build locally:
-```bash
-pnpm build
-# Then serve the dist/ directory with any static file server
-```
-
-## Example Reference
-
-See `packages/clicker/` for a complete working example of a simple game.
