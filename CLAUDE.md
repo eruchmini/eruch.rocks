@@ -54,6 +54,7 @@ packages/game-name/
 import { defineConfig } from "vite";
 
 export default defineConfig({
+  base: "/game-name/",
   build: {
     outDir: "../../dist/game-name",
     emptyOutDir: true,
@@ -61,7 +62,7 @@ export default defineConfig({
 });
 ```
 
-Replace `game-name` with the actual game name in both the outDir and package.json name.
+Replace `game-name` with the actual game name in the base path, outDir, and package.json name. The `base` setting is critical - it ensures asset paths are correct when the game is served from a subdirectory.
 
 ## Development Workflow
 
