@@ -391,3 +391,217 @@ window.addEventListener('resize', () => {
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
 });
+
+// Animation loop with momentum-based physics
+function animate(): void {
+    requestAnimationFrame(animate);
+
+    // Pitch controls (W = up, S = down)
+    if (keys['w'] || keys['ArrowUp']) {
+        birdPitch += pitchSpeed;
+    }
+    if (keys['s'] || keys['ArrowDown']) {
+        birdPitch -= pitchSpeed;
+    }
+
+    // Apply pitch decay when no input (returns to level flight)
+    if (!keys['w'] && !keys['ArrowUp'] && !keys['s'] && !keys['ArrowDown']) {
+        birdPitch *= pitchDecay;
+    }
+
+    // Limit pitch angle
+    birdPitch = Math.max(-0.8, Math.min(0.8, birdPitch));
+
+    // Yaw controls (A = left, D = right) with banking
+    if (keys['a'] || keys['ArrowLeft']) {
+        birdYaw += yawSpeed;
+        bankingAngle = Math.min(bankingAngle + 0.05, 0.6); // Tilt left (positive)
+    } else if (keys['d'] || keys['ArrowRight']) {
+        birdYaw -= yawSpeed;
+        bankingAngle = Math.max(bankingAngle - 0.05, -0.6); // Tilt right (negative)
+    } else {
+        // Return to level when not turning
+        bankingAngle *= 0.9;
+    }
+
+    // Speed mechanics based on pitch
+    // Diving (negative pitch) increases speed
+    // Climbing (positive pitch) decreases speed
+    const pitchSpeedEffect = -birdPitch * 0.015;
+    forwardSpeed += pitchSpeedEffect;
+
+    // Air resistance - gradually return to cruising speed when flying level
+    // This prevents maintaining high dive speeds indefinitely
+    const speedDifference = forwardSpeed - cruisingSpeed;
+    const airResistance = speedDifference * 0.02; // 2% drag toward cruising speed
+    forwardSpeed -= airResistance;
+
+    // Speed boost with space
+    let currentSpeed = forwardSpeed;
+    if (keys[' '] || keys['Space']) {
+        currentSpeed *= 1.8;
+    }
+
+    // Clamp speed
+    forwardSpeed = Math.max(minSpeed, Math.min(maxSpeed, forwardSpeed));
+    currentSpeed = Math.max(minSpeed, Math.min(maxSpeed * 1.8, currentSpeed));
+
+    // Calculate movement based on pitch and yaw
+    const pitchCos = Math.cos(birdPitch);
+    const pitchSin = Math.sin(birdPitch);
+
+    // Move bird in 3D space based on orientation
+    bird.position.x += Math.sin(birdYaw) * pitchCos * currentSpeed;
+    bird.position.z += Math.cos(birdYaw) * pitchCos * currentSpeed;
+    bird.position.y += pitchSin * currentSpeed;
+
+    // Map boundary collision with mountain walls
+    const boundaryLimit = MAP_SIZE - BOUNDARY_BUFFER;
+    const distanceFromCenter = Math.sqrt(
+        bird.position.x * bird.position.x +
+        bird.position.z * bird.position.z
+    );
+
+    // Check if bird is near or past the boundary
+    if (Math.abs(bird.position.x) > boundaryLimit || Math.abs(bird.position.z) > boundaryLimit) {
+        // Calculate distance from center to determine if we're at the edge
+        const maxDistance = boundaryLimit * Math.sqrt(2); // Diagonal distance
+
+        // If too far from center, push bird back to boundary
+        if (distanceFromCenter > boundaryLimit) {
+            // Normalize position and push back to boundary
+            const angle = Math.atan2(bird.position.z, bird.position.x);
+            bird.position.x = Math.cos(angle) * boundaryLimit;
+            bird.position.z = Math.sin(angle) * boundaryLimit;
+
+            // Bounce bird away from wall if flying into it
+            if (Math.cos(birdYaw - angle) > 0.5) {
+                birdYaw = angle + Math.PI; // Turn around
+            }
+        }
+
+        // Invisible wall at top of mountains - can't fly over them
+        if (bird.position.y > MOUNTAIN_HEIGHT) {
+            bird.position.y = MOUNTAIN_HEIGHT;
+            birdPitch = Math.min(birdPitch, -0.1); // Force downward
+        }
+    }
+
+    // Keep bird above ground with bounce
+    if (bird.position.y < 2) {
+        bird.position.y = 2;
+        birdPitch = Math.abs(birdPitch) * 0.5; // Bounce up slightly
+    }
+
+    // Global height ceiling (for areas away from mountains)
+    if (bird.position.y > 80) {
+        bird.position.y = 80;
+        birdPitch = Math.min(birdPitch, 0);
+    }
+
+    // Calculate actual velocity to determine visual pitch
+    const actualVelocity = bird.position.clone().sub(previousPosition);
+    const horizontalSpeed = Math.sqrt(actualVelocity.x * actualVelocity.x + actualVelocity.z * actualVelocity.z);
+    const verticalSpeed = actualVelocity.y;
+
+    // Calculate the actual flight path angle based on real velocity
+    // This ensures the bird visually points in the direction it's actually moving
+    let visualPitch = birdPitch;
+    if (horizontalSpeed > 0.001) { // Avoid division by zero
+        visualPitch = Math.atan2(verticalSpeed, horizontalSpeed);
+    }
+
+    // Update bird rotation with actual flight direction
+    bird.rotation.y = birdYaw;
+    bird.rotation.x = -visualPitch; // Use actual flight path angle
+    bird.rotation.z = bankingAngle; // Enhanced banking effect when turning
+
+    // Store current position for next frame's velocity calculation
+    previousPosition.copy(bird.position);
+
+    // Dynamic wing flapping based on speed
+    wingFlap += 0.15 + currentSpeed * 0.3;
+    const flapAmount = 0.25 + currentSpeed * 0.15;
+    leftWing.rotation.z = Math.sin(wingFlap) * flapAmount;
+    rightWing.rotation.z = -Math.sin(wingFlap) * flapAmount;
+
+    // Update motion trail
+    trailIndex = (trailIndex + 1) % trailLength;
+    trailPoints[trailIndex].copy(bird.position);
+    trail.geometry.setFromPoints(trailPoints);
+    trail.geometry.attributes.position.needsUpdate = true;
+
+    // Camera system - toggle between first-person and third-person
+    if (isFirstPerson) {
+        // First-person camera positioned at bird's head
+        const headOffset = new THREE.Vector3(0, 0.5, 0.6); // Position at head
+        headOffset.applyAxisAngle(new THREE.Vector3(1, 0, 0), -birdPitch); // Apply pitch rotation
+        headOffset.applyAxisAngle(new THREE.Vector3(0, 1, 0), birdYaw); // Apply yaw rotation
+
+        camera.position.copy(bird.position.clone().add(headOffset));
+
+        // Camera looks in the direction the bird is facing
+        const lookDirection = new THREE.Vector3(
+            Math.sin(birdYaw) * Math.cos(birdPitch),
+            Math.sin(birdPitch),
+            Math.cos(birdYaw) * Math.cos(birdPitch)
+        );
+        const lookTarget = camera.position.clone().add(lookDirection.multiplyScalar(10));
+        camera.lookAt(lookTarget);
+    } else {
+        // Third-person camera follows bird from behind
+        const cameraDistance = 10 + currentSpeed * 8;
+        const cameraHeight = 3 - birdPitch * 8;
+        const cameraOffset = new THREE.Vector3(
+            Math.sin(birdYaw) * -cameraDistance,
+            cameraHeight,
+            Math.cos(birdYaw) * -cameraDistance
+        );
+        camera.position.lerp(bird.position.clone().add(cameraOffset), 0.08);
+        camera.lookAt(bird.position);
+    }
+
+    // Move clouds slowly for parallax effect
+    clouds.forEach((cloud, index) => {
+        cloud.position.x += 0.008;
+        cloud.position.z += Math.sin(index * 0.5) * 0.002;
+        if (cloud.position.x > 150) {
+            cloud.position.x = -150;
+        }
+    });
+
+    // Update stats with color coding
+    const speedElement = document.getElementById('speed');
+    const speedValue = currentSpeed.toFixed(3);
+    if (speedElement) {
+        speedElement.textContent = speedValue;
+
+        // Color code speed
+        if (currentSpeed > 0.5) {
+            speedElement.className = 'speed-indicator high-speed';
+        } else if (currentSpeed < 0.25) {
+            speedElement.className = 'speed-indicator low-speed';
+        } else {
+            speedElement.className = 'speed-indicator';
+        }
+    }
+
+    const altitudeElement = document.getElementById('altitude');
+    if (altitudeElement) {
+        altitudeElement.textContent = Math.round(bird.position.y).toString();
+    }
+
+    const pitchElement = document.getElementById('pitch');
+    if (pitchElement) {
+        pitchElement.textContent = Math.round(birdPitch * 57.3).toString(); // Convert to degrees
+    }
+
+    const positionElement = document.getElementById('position');
+    if (positionElement) {
+        positionElement.textContent = `${Math.round(bird.position.x)}, ${Math.round(bird.position.z)}`;
+    }
+
+    renderer.render(scene, camera);
+}
+
+animate();
