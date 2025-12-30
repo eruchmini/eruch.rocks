@@ -251,3 +251,98 @@ for (let i = 0; i < 40; i++) {
     );
     scene.add(tree);
 }
+
+// Create mountain boundary around the map with variation
+function createMountain(x: number, z: number, width: number, depth: number): THREE.Group {
+    const mountain = new THREE.Group();
+
+    // Randomize mountain characteristics for variety
+    const heightVariation = Math.random() * 40 + 80; // 80-120m tall
+    const widthVariation = width * (0.8 + Math.random() * 0.6); // 0.8x to 1.4x width
+    const segments = Math.floor(Math.random() * 8) + 12; // 12-20 segments for variety
+
+    // Random rock colors (browns, grays, dark earth tones)
+    const rockColors = [
+        0x8B7355, // Sandy brown
+        0x696969, // Dim gray
+        0x5C4033, // Dark brown
+        0x708090, // Slate gray
+        0x654321, // Dark brown
+        0x778899, // Light slate gray
+        0x6B5D4F  // Brownish gray
+    ];
+    const rockColor = rockColors[Math.floor(Math.random() * rockColors.length)];
+
+    // Main mountain body - varied shape
+    const mountainGeometry = new THREE.ConeGeometry(widthVariation / 2, heightVariation, segments);
+    const mountainMaterial = new THREE.MeshStandardMaterial({
+        color: rockColor,
+        roughness: 0.9 + Math.random() * 0.1,
+        metalness: 0
+    });
+    const mountainMesh = new THREE.Mesh(mountainGeometry, mountainMaterial);
+    mountainMesh.position.y = heightVariation / 2;
+    mountainMesh.castShadow = true;
+    mountainMesh.receiveShadow = true;
+    mountain.add(mountainMesh);
+
+    // Snow cap - varying sizes and heights
+    const snowCapHeight = heightVariation * (0.15 + Math.random() * 0.15); // 15-30% of mountain
+    const snowCapGeometry = new THREE.ConeGeometry(widthVariation / 4, snowCapHeight, segments);
+    const snowMaterial = new THREE.MeshStandardMaterial({
+        color: 0xFFFFFF,
+        roughness: 0.6 + Math.random() * 0.3,
+        metalness: 0.05 + Math.random() * 0.1
+    });
+    const snowCap = new THREE.Mesh(snowCapGeometry, snowMaterial);
+    snowCap.position.y = heightVariation - snowCapHeight / 2;
+    mountain.add(snowCap);
+
+    // Add some random rock outcroppings for variety
+    if (Math.random() > 0.5) {
+        const rockSize = widthVariation * 0.15;
+        const rockGeometry = new THREE.DodecahedronGeometry(rockSize, 0);
+        const rockMaterial = new THREE.MeshStandardMaterial({
+            color: rockColor,
+            roughness: 0.95,
+            metalness: 0
+        });
+        const rock = new THREE.Mesh(rockGeometry, rockMaterial);
+        rock.position.set(
+            (Math.random() - 0.5) * widthVariation * 0.4,
+            heightVariation * (0.3 + Math.random() * 0.3),
+            (Math.random() - 0.5) * widthVariation * 0.4
+        );
+        rock.rotation.set(
+            Math.random() * Math.PI,
+            Math.random() * Math.PI,
+            Math.random() * Math.PI
+        );
+        rock.castShadow = true;
+        mountain.add(rock);
+    }
+
+    mountain.position.set(x, 0, z);
+    return mountain;
+}
+
+// Map boundary constants
+const MAP_SIZE = 250; // Half-size of the map (500x500 total)
+const MOUNTAIN_HEIGHT = 100; // Increased from 30 to 100 meters
+const MOUNTAIN_WIDTH = 60; // Increased to ensure no gaps
+const BOUNDARY_BUFFER = 15; // Extra space before hitting invisible wall
+
+// Create mountain ring around the map perimeter
+const mountainSpacing = 45; // Reduced spacing to eliminate gaps
+
+// North and South walls
+for (let x = -MAP_SIZE; x <= MAP_SIZE; x += mountainSpacing) {
+    scene.add(createMountain(x, MAP_SIZE, MOUNTAIN_WIDTH, MOUNTAIN_WIDTH));  // North
+    scene.add(createMountain(x, -MAP_SIZE, MOUNTAIN_WIDTH, MOUNTAIN_WIDTH)); // South
+}
+
+// East and West walls (skip corners to avoid overlap)
+for (let z = -MAP_SIZE + mountainSpacing; z < MAP_SIZE; z += mountainSpacing) {
+    scene.add(createMountain(MAP_SIZE, z, MOUNTAIN_WIDTH, MOUNTAIN_WIDTH));  // East
+    scene.add(createMountain(-MAP_SIZE, z, MOUNTAIN_WIDTH, MOUNTAIN_WIDTH)); // West
+}
