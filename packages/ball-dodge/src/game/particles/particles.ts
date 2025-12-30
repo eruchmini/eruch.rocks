@@ -1,9 +1,70 @@
 // ABOUTME: Particle system for visual effects
 // ABOUTME: Creates and manages particle effects for explosions and impacts
-// @ts-nocheck
 
-export const drawMuzzleFlashes = (ctx: CanvasRenderingContext2D, muzzleFlashesRef: any, currentTime: number): void => {
-  muzzleFlashesRef.current = muzzleFlashesRef.current.filter(flash => {
+interface MuzzleFlash {
+  x: number;
+  y: number;
+  angle: number;
+  spawnTime: number;
+}
+
+interface SmokeParticle {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  size: number;
+  spawnTime: number;
+  life: number;
+}
+
+interface ImpactParticle {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  size: number;
+  color: string;
+  spawnTime: number;
+  life: number;
+  isFlash?: boolean;
+}
+
+interface Explosion {
+  x: number;
+  y: number;
+  radius: number;
+  maxRadius: number;
+  growSpeed: number;
+  active: boolean;
+}
+
+interface DangerZone {
+  x: number;
+  y: number;
+  radius: number;
+  spawnTime: number;
+  warningTime: number;
+}
+
+interface Ball {
+  id: string;
+  x: number;
+  y: number;
+  radius: number;
+  isShield: boolean;
+  isPurple: boolean;
+  isTracking?: boolean;
+}
+
+interface Player {
+  x: number;
+  y: number;
+  radius: number;
+}
+
+export const drawMuzzleFlashes = (ctx: CanvasRenderingContext2D, muzzleFlashesRef: { current: MuzzleFlash[] }, currentTime: number): void => {
+  muzzleFlashesRef.current = muzzleFlashesRef.current.filter((flash: MuzzleFlash) => {
     const age = currentTime - flash.spawnTime;
     if (age > 120) return false;
 
@@ -76,8 +137,8 @@ export const drawMuzzleFlashes = (ctx: CanvasRenderingContext2D, muzzleFlashesRe
   });
 };
 
-export const drawSmokeParticles = (ctx: CanvasRenderingContext2D, smokeParticlesRef: any, currentTime: number): void => {
-  smokeParticlesRef.current = smokeParticlesRef.current.filter(smoke => {
+export const drawSmokeParticles = (ctx: CanvasRenderingContext2D, smokeParticlesRef: { current: SmokeParticle[] }, currentTime: number): void => {
+  smokeParticlesRef.current = smokeParticlesRef.current.filter((smoke: SmokeParticle) => {
     const age = currentTime - smoke.spawnTime;
     if (age > smoke.life) return false;
 
@@ -103,8 +164,8 @@ export const drawSmokeParticles = (ctx: CanvasRenderingContext2D, smokeParticles
   });
 };
 
-export const drawImpactParticles = (ctx: CanvasRenderingContext2D, impactParticlesRef: any, currentTime: number): void => {
-  impactParticlesRef.current = impactParticlesRef.current.filter(particle => {
+export const drawImpactParticles = (ctx: CanvasRenderingContext2D, impactParticlesRef: { current: ImpactParticle[] }, currentTime: number): void => {
+  impactParticlesRef.current = impactParticlesRef.current.filter((particle: ImpactParticle) => {
     const age = currentTime - particle.spawnTime;
     if (age > particle.life) return false;
 
@@ -156,15 +217,15 @@ export const drawImpactParticles = (ctx: CanvasRenderingContext2D, impactParticl
   });
 };
 
-export const createMuzzleFlash = (x: number, y: number, angle: number): any => ({
+export const createMuzzleFlash = (x: number, y: number, angle: number): MuzzleFlash => ({
   x,
   y,
   angle,
   spawnTime: Date.now()
 });
 
-export const createSmokeParticles = (x: number, y: number, angle: number, count = 5): any[] => {
-  const particles = [];
+export const createSmokeParticles = (x: number, y: number, angle: number, count = 5): SmokeParticle[] => {
+  const particles: SmokeParticle[] = [];
   for (let i = 0; i < count; i++) {
     particles.push({
       x,
@@ -179,8 +240,8 @@ export const createSmokeParticles = (x: number, y: number, angle: number, count 
   return particles;
 };
 
-export const createImpactParticles = (x: number, y: number, count: number, color: string): any[] => {
-  const particles = [];
+export const createImpactParticles = (x: number, y: number, count: number, color: string): ImpactParticle[] => {
+  const particles: ImpactParticle[] = [];
   for (let p = 0; p < count; p++) {
     const angle = (Math.PI * 2 * p) / count;
     const speed = 3 + Math.random() * 4;
@@ -198,7 +259,7 @@ export const createImpactParticles = (x: number, y: number, count: number, color
   return particles;
 };
 
-export const createImpactFlash = (x: number, y: number): any => ({
+export const createImpactFlash = (x: number, y: number): ImpactParticle => ({
   x,
   y,
   vx: 0,
@@ -210,8 +271,8 @@ export const createImpactFlash = (x: number, y: number): any => ({
   isFlash: true
 });
 
-export const drawExplosions = (ctx: CanvasRenderingContext2D, explosionsRef: any, ballsRef: any, setScore: any, isGameMasterRef: any, broadcastBallDestroy: any): void => {
-  explosionsRef.current = explosionsRef.current.filter(explosion => {
+export const drawExplosions = (ctx: CanvasRenderingContext2D, explosionsRef: { current: Explosion[] }, ballsRef: { current: Ball[] }, setScore: (update: (prev: number) => number) => void, isGameMaster: boolean, broadcastBallDestroy: (ballId: string) => void): void => {
+  explosionsRef.current = explosionsRef.current.filter((explosion: Explosion) => {
     if (!explosion.active) return false;
 
     explosion.radius += explosion.growSpeed;
@@ -223,6 +284,7 @@ export const drawExplosions = (ctx: CanvasRenderingContext2D, explosionsRef: any
     // Check ball collisions
     for (let i = ballsRef.current.length - 1; i >= 0; i--) {
       const ball = ballsRef.current[i];
+      if (!ball) continue;
       if (ball.isShield || ball.isPurple) continue;
 
       const dx = explosion.x - ball.x;
@@ -234,7 +296,7 @@ export const drawExplosions = (ctx: CanvasRenderingContext2D, explosionsRef: any
         ballsRef.current.splice(i, 1);
 
         // Game master broadcasts ball destruction
-        if (isGameMasterRef.current) {
+        if (isGameMaster) {
           broadcastBallDestroy(ballId);
         }
 
@@ -255,8 +317,8 @@ export const drawExplosions = (ctx: CanvasRenderingContext2D, explosionsRef: any
   });
 };
 
-export const drawDangerZones = (ctx: CanvasRenderingContext2D, dangerZonesRef: any, currentTime: number, explosionsRef: any, impactParticlesRef: any, playerRef: any, setGameOver: any, playGameOverSound: any, playGameOverMelody: any, stopBackgroundMusic: any, stopBossMusic: any, playExplosionSound: any): void => {
-  dangerZonesRef.current = dangerZonesRef.current.filter(zone => {
+export const drawDangerZones = (ctx: CanvasRenderingContext2D, dangerZonesRef: { current: DangerZone[] }, currentTime: number, explosionsRef: { current: Explosion[] }, impactParticlesRef: { current: ImpactParticle[] }, playerRef: { current: Player }, setGameOver: (value: boolean) => void, playGameOverSound: () => void, playGameOverMelody: () => void, stopBackgroundMusic: () => void, stopBossMusic: () => void, playExplosionSound: () => void): void => {
+  dangerZonesRef.current = dangerZonesRef.current.filter((zone: DangerZone) => {
     const age = currentTime - zone.spawnTime;
     zone.warningTime--;
 
@@ -276,7 +338,7 @@ export const drawDangerZones = (ctx: CanvasRenderingContext2D, dangerZonesRef: a
       ctx.fillStyle = '#ffffff';
       ctx.font = 'bold 24px Arial';
       ctx.textAlign = 'center';
-      ctx.fillText(secondsLeft, zone.x, zone.y + 8);
+      ctx.fillText(String(secondsLeft), zone.x, zone.y + 8);
 
       if (zone.warningTime < 60) {
         const fallProgress = 1 - (zone.warningTime / 60);
