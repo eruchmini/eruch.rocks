@@ -11,18 +11,29 @@ A multiplayer ball dodge game with boss battles, upgrades, and dynamic music.
 - 💥 Particle effects and visual polish
 - 🎯 Multiple ball types (tracking, bouncing, shield)
 
-## Getting Started
+## Development
 
+This game is part of the eruch.rocks monorepo.
+
+**Run development server:**
 ```bash
-# Install dependencies
-npm install
-
-# Run development server
-npm run dev
-
-# Build for production
-npm run build
+cd packages/ball-dodge
+pnpm dev
 ```
+
+**Build for production:**
+```bash
+pnpm build
+```
+
+**Type check:**
+```bash
+pnpm typecheck
+```
+
+## Deployment
+
+Game is deployed at: https://eruchrocks.eruchmini2.workers.dev/ball-dodge/
 
 ## Controls
 
@@ -48,7 +59,7 @@ src/
 │   ├── audio/          # Sound and music systems
 │   ├── multiplayer/    # WebSocket multiplayer
 │   ├── particles/      # Particle effect systems
-│   └── constants.js    # Game configuration
-├── App.jsx             # App entry point
-└── index.jsx           # React entry point
+│   └── constants.ts    # Game configuration
+├── App.tsx             # App entry point
+└── index.tsx           # React entry point
 ```
