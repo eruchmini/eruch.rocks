@@ -1,6 +1,5 @@
 // ABOUTME: Audio system managing game sound effects
 // ABOUTME: Handles sound playback for actions and events
-// @ts-nocheck
 
 export class AudioSystem {
   audioContext: AudioContext | null;
@@ -19,7 +18,10 @@ export class AudioSystem {
 
   initialize(): void {
     if (!this.audioContext) {
-      this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const AudioContextClass = window.AudioContext || (window as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (AudioContextClass) {
+        this.audioContext = new AudioContextClass();
+      }
     }
   }
 
@@ -134,7 +136,8 @@ export class AudioSystem {
   playGameOverMelody(): void {
     if (!this.enabled || !this.audioContext) return;
 
-    const playNote = (frequency, startTime, duration, volume = 0.1) => {
+    const playNote = (frequency: number, startTime: number, duration: number, volume = 0.1): void => {
+      if (!this.audioContext) return;
       const osc = this.audioContext.createOscillator();
       const gain = this.audioContext.createGain();
 
@@ -167,17 +170,18 @@ export class AudioSystem {
       392, 330, 262, 196
     ];
 
-    melody.forEach((freq, i) => {
+    melody.forEach((freq: number, i: number) => {
       playNote(freq, now + i * beatDuration, beatDuration * 1.5, 0.08);
     });
   }
 
   // ============ Background Music ============
 
-  startBackgroundMusic(gameOver) {
+  startBackgroundMusic(gameOver: () => boolean): void {
     if (!this.enabled || this.backgroundMusicRef.current || !this.audioContext) return;
 
-    const playNote = (frequency, startTime, duration) => {
+    const playNote = (frequency: number, startTime: number, duration: number): void => {
+      if (!this.audioContext) return;
       const osc = this.audioContext.createOscillator();
       const gain = this.audioContext.createGain();
 
@@ -195,8 +199,8 @@ export class AudioSystem {
       osc.stop(startTime + duration);
     };
 
-    const playMusicLoop = () => {
-      if (!this.enabled || gameOver()) return;
+    const playMusicLoop = (): void => {
+      if (!this.enabled || gameOver() || !this.audioContext) return;
 
       const now = this.audioContext.currentTime;
       const beatDuration = 0.15;
@@ -222,7 +226,7 @@ export class AudioSystem {
         ]
       ];
 
-      let selectedSong;
+      let selectedSong: number;
       if (Math.random() < 0.1) {
         selectedSong = 2;
       } else {
@@ -230,9 +234,9 @@ export class AudioSystem {
         this.currentSongRef.current = (this.currentSongRef.current + 1) % 2;
       }
 
-      const melody = melodies[selectedSong];
+      const melody = melodies[selectedSong]!;
 
-      melody.forEach((freq, i) => {
+      melody.forEach((freq: number, i: number) => {
         playNote(freq, now + i * beatDuration, beatDuration * 0.9);
       });
 
@@ -251,10 +255,11 @@ export class AudioSystem {
 
   // ============ Boss Music ============
 
-  startBossMusic(gameOver) {
+  startBossMusic(gameOver: () => boolean): void {
     if (!this.enabled || this.bossMusicRef.current || !this.audioContext) return;
 
-    const playNote = (frequency, startTime, duration, volume = 0.12) => {
+    const playNote = (frequency: number, startTime: number, duration: number, volume = 0.12): void => {
+      if (!this.audioContext) return;
       const osc = this.audioContext.createOscillator();
       const gain = this.audioContext.createGain();
 
@@ -272,7 +277,8 @@ export class AudioSystem {
       osc.stop(startTime + duration);
     };
 
-    const playBass = (frequency, startTime, duration) => {
+    const playBass = (frequency: number, startTime: number, duration: number): void => {
+      if (!this.audioContext) return;
       const osc = this.audioContext.createOscillator();
       const gain = this.audioContext.createGain();
 
@@ -290,8 +296,8 @@ export class AudioSystem {
       osc.stop(startTime + duration);
     };
 
-    const playBossMusicLoop = () => {
-      if (!this.enabled || gameOver()) return;
+    const playBossMusicLoop = (): void => {
+      if (!this.enabled || gameOver() || !this.audioContext) return;
 
       const now = this.audioContext.currentTime;
       const beatDuration = 0.08;
@@ -318,11 +324,11 @@ export class AudioSystem {
         220, 220, 220, 220, 262, 262, 262, 262
       ];
 
-      melody.forEach((freq, i) => {
+      melody.forEach((freq: number, i: number) => {
         playNote(freq, now + i * beatDuration, beatDuration * 0.9, 0.13);
       });
 
-      bassLine.forEach((freq, i) => {
+      bassLine.forEach((freq: number, i: number) => {
         const bassTime = now + (i * 8) * beatDuration;
         playBass(freq, bassTime, beatDuration * 8);
       });
@@ -340,7 +346,7 @@ export class AudioSystem {
     }
   }
 
-  resume() {
+  resume(): void {
     if (this.audioContext && this.audioContext.state === 'suspended') {
       this.audioContext.resume();
     }
