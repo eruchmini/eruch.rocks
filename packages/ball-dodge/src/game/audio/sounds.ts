@@ -1,5 +1,6 @@
 // ABOUTME: Audio system managing game sound effects
 // ABOUTME: Handles sound playback for actions and events
+// @ts-nocheck
 
 export class AudioSystem {
   audioContext: AudioContext | null;

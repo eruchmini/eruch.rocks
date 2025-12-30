@@ -267,7 +267,7 @@ export class Boss {
     return distance < this.radius + entity.radius;
   }
 
-  takeDamage(amount: number): void {
+  takeDamage(amount: number): boolean {
     this.hp -= amount;
     return this.hp <= 0;
   }

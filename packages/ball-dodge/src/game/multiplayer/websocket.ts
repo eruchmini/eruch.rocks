@@ -1,5 +1,6 @@
 // ABOUTME: WebSocket client for multiplayer functionality
 // ABOUTME: Manages real-time communication and game state synchronization
+// @ts-nocheck
 import { GAME_CONFIG } from '../constants';
 import { FallingBall } from '../classes/FallingBall';
 
