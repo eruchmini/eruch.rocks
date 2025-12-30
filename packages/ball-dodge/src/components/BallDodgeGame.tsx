@@ -22,7 +22,7 @@ import { UpgradeMenu } from './UpgradeMenu';
 import { GameOver } from './GameOver';
 
 const BallDodgeGame = (): React.ReactElement => {
-  const canvasRef = useRef(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
 
   // Game state
   const [score, setScore] = useState(0);
@@ -49,13 +49,13 @@ const BallDodgeGame = (): React.ReactElement => {
     radius: GAME_CONFIG.PLAYER.RADIUS,
     speed: GAME_CONFIG.PLAYER.BASE_SPEED
   });
-  const ballsRef = useRef([]);
-  const keysRef = useRef({});
-  const animationRef = useRef(null);
-  const blastsRef = useRef([]);
+  const ballsRef = useRef<any[]>([]);
+  const keysRef = useRef<Record<string, boolean>>({});
+  const animationRef = useRef<number | null>(null);
+  const blastsRef = useRef<any[]>([]);
   const shieldRef = useRef(false);
-  const explosionsRef = useRef([]);
-  const shieldTimerRef = useRef(null);
+  const explosionsRef = useRef<any[]>([]);
+  const shieldTimerRef = useRef<number | null>(null);
   const lastScoreCheckRef = useRef(0);
   const speedUpgradesRef = useRef(0);
   const doubleClickUpgradesRef = useRef(0);
@@ -63,23 +63,23 @@ const BallDodgeGame = (): React.ReactElement => {
   const currentCursorRef = useRef({ x: 0, y: 0 });
   const explosionUpgradesRef = useRef(0);
   const trackingUpgradesRef = useRef(0);
-  const muzzleFlashesRef = useRef([]);
-  const smokeParticlesRef = useRef([]);
-  const impactParticlesRef = useRef([]);
-  const bossRef = useRef(null);
+  const muzzleFlashesRef = useRef<any[]>([]);
+  const smokeParticlesRef = useRef<any[]>([]);
+  const impactParticlesRef = useRef<any[]>([]);
+  const bossRef = useRef<Boss | null>(null);
   const bossSpawnedRef = useRef(false);
   const currentScoreRef = useRef(0);
-  const dangerZonesRef = useRef([]);
+  const dangerZonesRef = useRef<any[]>([]);
   const bossDefeatedRef = useRef(false);
   const screenShakeRef = useRef({ x: 0, y: 0, intensity: 0 });
   const comboRef = useRef({ count: 0, lastHitTime: 0 });
-  const powerupsRef = useRef([]);
-  const activePowerupsRef = useRef([]);
+  const powerupsRef = useRef<any[]>([]);
+  const activePowerupsRef = useRef<any[]>([]);
 
   // Multiplayer refs
   const playerIdRef = useRef(Math.random().toString(36).substr(2, 9));
-  const otherPlayersRef = useRef({});
-  const otherBlastsRef = useRef([]);
+  const otherPlayersRef = useRef<Record<string, any>>({});
+  const otherBlastsRef = useRef<any[]>([]);
   const lastPositionBroadcastRef = useRef(0);
   const isGameMasterRef = useRef(false);
   const gameMasterIdRef = useRef(null);
@@ -88,11 +88,13 @@ const BallDodgeGame = (): React.ReactElement => {
 
   // Audio and multiplayer systems
   const audioSystemRef = useRef(new AudioSystem());
-  const multiplayerRef = useRef(null);
+  const multiplayerRef = useRef<MultiplayerManager | null>(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
+    if (!canvas) return;
     const ctx = canvas.getContext('2d');
+    if (!ctx) return;
 
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
@@ -115,7 +117,7 @@ const BallDodgeGame = (): React.ReactElement => {
     multiplayerRef.current.connect();
 
     // Keyboard event handlers
-    const handleKeyDown = (e) => {
+    const handleKeyDown = (e: KeyboardEvent): void => {
       if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'w', 'a', 's', 'd', 'W', 'A', 'S', 'D'].includes(e.key)) {
         e.preventDefault();
         keysRef.current[e.key] = true;
@@ -125,7 +127,7 @@ const BallDodgeGame = (): React.ReactElement => {
       }
     };
 
-    const handleKeyUp = (e) => {
+    const handleKeyUp = (e: KeyboardEvent): void => {
       keysRef.current[e.key] = false;
     };
 
@@ -133,7 +135,7 @@ const BallDodgeGame = (): React.ReactElement => {
     window.addEventListener('keyup', handleKeyUp);
 
     // Mouse event handlers
-    const handleMouseMove = (e) => {
+    const handleMouseMove = (e: MouseEvent): void => {
       const rect = canvas.getBoundingClientRect();
       currentCursorRef.current = {
         x: e.clientX - rect.left,
@@ -143,7 +145,7 @@ const BallDodgeGame = (): React.ReactElement => {
 
     canvas.addEventListener('mousemove', handleMouseMove);
 
-    const handleClick = (e) => {
+    const handleClick = (e: MouseEvent): void => {
       if (gameOver) return;
 
       audioSystem.resume();
@@ -209,7 +211,7 @@ const BallDodgeGame = (): React.ReactElement => {
     canvas.addEventListener('click', handleClick);
 
     // Helper functions
-    const addScreenShake = (intensity) => {
+    const addScreenShake = (intensity: number): void => {
       screenShakeRef.current.intensity = Math.max(screenShakeRef.current.intensity, intensity);
     };
 
@@ -225,7 +227,7 @@ const BallDodgeGame = (): React.ReactElement => {
       }
     };
 
-    const spawnPowerup = (x, y) => {
+    const spawnPowerup = (x: number, y: number): void => {
       if (Math.random() < GAME_CONFIG.POWERUP.DROP_CHANCE) {
         const types = Object.values(GAME_CONFIG.POWERUP.TYPES);
         const type = types[Math.floor(Math.random() * types.length)];
@@ -239,7 +241,7 @@ const BallDodgeGame = (): React.ReactElement => {
       }
     };
 
-    const activatePowerup = (type) => {
+    const activatePowerup = (type: string): void => {
       const powerup = {
         type,
         endTime: Date.now() + GAME_CONFIG.POWERUP.DURATION,
@@ -279,12 +281,12 @@ const BallDodgeGame = (): React.ReactElement => {
       );
     };
 
-    const hasActivePowerup = (type) => {
+    const hasActivePowerup = (type: string): boolean => {
       return activePowerupsRef.current.some(p => p.type === type);
     };
 
     // Spawn ball function
-    const spawnBall = (speedMultiplier) => {
+    const spawnBall = (speedMultiplier: number): void => {
       if (!gameOver && !bossSpawnedRef.current && isGameMasterRef.current) {
         const rand = Math.random();
         const isShield = rand < GAME_CONFIG.BALL.SHIELD_SPAWN_CHANCE;
@@ -303,7 +305,7 @@ const BallDodgeGame = (): React.ReactElement => {
     let gameStartTime = Date.now();
 
     // Main game loop
-    const animate = (timestamp) => {
+    const animate = (timestamp: number): void => {
       if (gameOver) return;
 
       if (!paused) {
