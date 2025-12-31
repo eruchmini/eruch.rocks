@@ -1,13 +1,14 @@
 // ABOUTME: Boss enemy class with special attack patterns
 // ABOUTME: Manages boss behavior, health, and phase transitions
 import { GAME_CONFIG } from '../constants';
+import { Player, Explosion, ImpactParticle, DangerZone } from '../types';
 
 export class Boss {
   canvas: HTMLCanvasElement;
-  playerRef: any;
-  explosionsRef: any;
-  impactParticlesRef: any;
-  dangerZonesRef: any;
+  playerRef: { current: Player };
+  explosionsRef: { current: Explosion[] };
+  impactParticlesRef: { current: ImpactParticle[] };
+  dangerZonesRef: { current: DangerZone[] };
   playExplosionSound: () => void;
   radius: number;
   x: number;
@@ -29,7 +30,7 @@ export class Boss {
   targetY: number;
   meteorCooldown: number;
 
-  constructor(canvas: HTMLCanvasElement, playerRef: any, explosionsRef: any, impactParticlesRef: any, dangerZonesRef: any, playExplosionSound: () => void) {
+  constructor(canvas: HTMLCanvasElement, playerRef: { current: Player }, explosionsRef: { current: Explosion[] }, impactParticlesRef: { current: ImpactParticle[] }, dangerZonesRef: { current: DangerZone[] }, playExplosionSound: () => void) {
     this.canvas = canvas;
     this.playerRef = playerRef;
     this.explosionsRef = explosionsRef;

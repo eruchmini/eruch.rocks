@@ -3,8 +3,8 @@
 
 export class AudioSystem {
   audioContext: AudioContext | null;
-  backgroundMusicRef: { current: any };
-  bossMusicRef: { current: any };
+  backgroundMusicRef: { current: ReturnType<typeof setTimeout> | null };
+  bossMusicRef: { current: ReturnType<typeof setTimeout> | null };
   currentSongRef: { current: number };
   enabled: boolean;
 

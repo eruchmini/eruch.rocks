@@ -1,12 +1,22 @@
 // ABOUTME: Main game canvas component handling gameplay and rendering
 // ABOUTME: Manages game loop, player movement, and collision detection
-// @ts-nocheck
 import React, { useState, useEffect, useRef } from 'react';
 import { GAME_CONFIG } from '../game/constants';
 import { FallingBall } from '../game/classes/FallingBall';
 import { Boss } from '../game/classes/Boss';
 import { AudioSystem } from '../game/audio/sounds';
 import { MultiplayerManager } from '../game/multiplayer/websocket';
+import {
+  MuzzleFlash,
+  SmokeParticle,
+  ImpactParticle,
+  Explosion,
+  DangerZone,
+  Blast,
+  OtherBlast,
+  Powerup,
+  ActivePowerup
+} from '../game/types';
 import {
   drawMuzzleFlashes,
   drawSmokeParticles,
@@ -29,19 +39,19 @@ const BallDodgeGame = (): React.ReactElement => {
   const [score, setScore] = useState(0);
   const [gameOver, setGameOver] = useState(false);
   const [paused, setPaused] = useState(false);
-  const [hasShield, setHasShield] = useState(false);
+  const [_hasShield, setHasShield] = useState(false);
   const [upgradePoints, setUpgradePoints] = useState(0);
   const [showUpgradeMenu, setShowUpgradeMenu] = useState(false);
   const [speedUpgrades, setSpeedUpgrades] = useState(0);
   const [doubleClickUpgrades, setDoubleClickUpgrades] = useState(0);
   const [explosionUpgrades, setExplosionUpgrades] = useState(0);
   const [trackingUpgrades, setTrackingUpgrades] = useState(0);
-  const [bossActive, setBossActive] = useState(false);
-  const [bossHP, setBossHP] = useState(GAME_CONFIG.BOSS.HP);
+  const [_bossActive, setBossActive] = useState(false);
+  const [_bossHP, setBossHP] = useState(GAME_CONFIG.BOSS.HP);
   const [musicEnabled, setMusicEnabled] = useState(true);
   const [isGameMaster, setIsGameMaster] = useState(false);
-  const [combo, setCombo] = useState(0);
-  const [activePowerups, setActivePowerups] = useState([]);
+  const [_combo, setCombo] = useState(0);
+  const [_activePowerups, setActivePowerups] = useState<Array<{ type: string; endTime: number }>>([]);
 
   // Game refs
   const playerRef = useRef({
@@ -50,13 +60,13 @@ const BallDodgeGame = (): React.ReactElement => {
     radius: GAME_CONFIG.PLAYER.RADIUS,
     speed: GAME_CONFIG.PLAYER.BASE_SPEED
   });
-  const ballsRef = useRef<any[]>([]);
+  const ballsRef = useRef<FallingBall[]>([]);
   const keysRef = useRef<Record<string, boolean>>({});
   const animationRef = useRef<number | null>(null);
-  const blastsRef = useRef<any[]>([]);
+  const blastsRef = useRef<Blast[]>([]);
   const shieldRef = useRef(false);
-  const explosionsRef = useRef<any[]>([]);
-  const shieldTimerRef = useRef<number | null>(null);
+  const explosionsRef = useRef<Explosion[]>([]);
+  const shieldTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastScoreCheckRef = useRef(0);
   const speedUpgradesRef = useRef(0);
   const doubleClickUpgradesRef = useRef(0);
@@ -64,26 +74,26 @@ const BallDodgeGame = (): React.ReactElement => {
   const currentCursorRef = useRef({ x: 0, y: 0 });
   const explosionUpgradesRef = useRef(0);
   const trackingUpgradesRef = useRef(0);
-  const muzzleFlashesRef = useRef<any[]>([]);
-  const smokeParticlesRef = useRef<any[]>([]);
-  const impactParticlesRef = useRef<any[]>([]);
+  const muzzleFlashesRef = useRef<MuzzleFlash[]>([]);
+  const smokeParticlesRef = useRef<SmokeParticle[]>([]);
+  const impactParticlesRef = useRef<ImpactParticle[]>([]);
   const bossRef = useRef<Boss | null>(null);
   const bossSpawnedRef = useRef(false);
   const currentScoreRef = useRef(0);
-  const dangerZonesRef = useRef<any[]>([]);
+  const dangerZonesRef = useRef<DangerZone[]>([]);
   const bossDefeatedRef = useRef(false);
   const screenShakeRef = useRef({ x: 0, y: 0, intensity: 0 });
   const comboRef = useRef({ count: 0, lastHitTime: 0 });
-  const powerupsRef = useRef<any[]>([]);
-  const activePowerupsRef = useRef<any[]>([]);
+  const powerupsRef = useRef<Powerup[]>([]);
+  const activePowerupsRef = useRef<ActivePowerup[]>([]);
 
   // Multiplayer refs
   const playerIdRef = useRef(Math.random().toString(36).substr(2, 9));
-  const otherPlayersRef = useRef<Record<string, any>>({});
-  const otherBlastsRef = useRef<any[]>([]);
+  const otherPlayersRef = useRef<Record<string, { x: number; y: number; targetX: number; targetY: number; hasShield: boolean; lastUpdate: number }>>({});
+  const otherBlastsRef = useRef<OtherBlast[]>([]);
   const lastPositionBroadcastRef = useRef(0);
   const isGameMasterRef = useRef(false);
-  const gameMasterIdRef = useRef(null);
+  const gameMasterIdRef = useRef<string | null>(null);
   const lastBallUpdateRef = useRef(0);
   const ballIdCounterRef = useRef(0);
 
@@ -232,6 +242,7 @@ const BallDodgeGame = (): React.ReactElement => {
       if (Math.random() < GAME_CONFIG.POWERUP.DROP_CHANCE) {
         const types = Object.values(GAME_CONFIG.POWERUP.TYPES);
         const type = types[Math.floor(Math.random() * types.length)];
+        if (!type) return;
         powerupsRef.current.push({
           x,
           y,
@@ -552,14 +563,14 @@ const BallDodgeGame = (): React.ReactElement => {
         ctx.beginPath();
         ctx.arc(powerup.x, powerup.y, powerup.radius * pulseScale, 0, Math.PI * 2);
 
-        const colors = {
+        const colors: Record<string, string> = {
           [GAME_CONFIG.POWERUP.TYPES.RAPID_FIRE]: GAME_CONFIG.COLORS.POWERUP_RAPID_FIRE,
           [GAME_CONFIG.POWERUP.TYPES.INVINCIBILITY]: GAME_CONFIG.COLORS.POWERUP_INVINCIBILITY,
           [GAME_CONFIG.POWERUP.TYPES.SLOW_TIME]: GAME_CONFIG.COLORS.POWERUP_SLOW_TIME,
           [GAME_CONFIG.POWERUP.TYPES.MEGA_BLAST]: GAME_CONFIG.COLORS.POWERUP_MEGA_BLAST,
         };
 
-        ctx.fillStyle = colors[powerup.type];
+        ctx.fillStyle = colors[powerup.type] || '#ffffff';
         ctx.fill();
         ctx.strokeStyle = '#fff';
         ctx.lineWidth = 2;
@@ -570,13 +581,13 @@ const BallDodgeGame = (): React.ReactElement => {
         ctx.font = 'bold 12px Arial';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        const icons = {
+        const icons: Record<string, string> = {
           [GAME_CONFIG.POWERUP.TYPES.RAPID_FIRE]: 'R',
           [GAME_CONFIG.POWERUP.TYPES.INVINCIBILITY]: 'I',
           [GAME_CONFIG.POWERUP.TYPES.SLOW_TIME]: 'S',
           [GAME_CONFIG.POWERUP.TYPES.MEGA_BLAST]: 'M',
         };
-        ctx.fillText(icons[powerup.type], powerup.x, powerup.y);
+        ctx.fillText(icons[powerup.type] || '?', powerup.x, powerup.y);
 
         return true;
       });
@@ -632,7 +643,7 @@ const BallDodgeGame = (): React.ReactElement => {
     };
 
     // Helper functions for game loop
-    const updateAndDrawBlasts = (ctx, currentTime, audioSystem) => {
+    const updateAndDrawBlasts = (ctx: CanvasRenderingContext2D, _currentTime: number, audioSystem: AudioSystem) => {
       const trackingDuration = trackingUpgradesRef.current * GAME_CONFIG.UPGRADE.TRACKING_DURATION_PER_LEVEL;
 
       blastsRef.current = blastsRef.current.filter(blast => {
@@ -666,7 +677,7 @@ const BallDodgeGame = (): React.ReactElement => {
         blast.y += Math.sin(blast.angle) * blast.speed;
 
         // Check collision with other players
-        for (const [id, otherPlayer] of Object.entries(otherPlayersRef.current)) {
+        for (const [_id, otherPlayer] of Object.entries(otherPlayersRef.current)) {
           const dx = blast.x - otherPlayer.x;
           const dy = blast.y - otherPlayer.y;
           const dist = Math.sqrt(dx * dx + dy * dy);
@@ -681,6 +692,7 @@ const BallDodgeGame = (): React.ReactElement => {
         // Check collision with other blasts
         for (let i = otherBlastsRef.current.length - 1; i >= 0; i--) {
           const otherBlast = otherBlastsRef.current[i];
+          if (!otherBlast) continue;
           const dx = blast.x - otherBlast.x;
           const dy = blast.y - otherBlast.y;
           const dist = Math.sqrt(dx * dx + dy * dy);
@@ -739,6 +751,7 @@ const BallDodgeGame = (): React.ReactElement => {
         // Check collision with balls
         for (let i = ballsRef.current.length - 1; i >= 0; i--) {
           const ball = ballsRef.current[i];
+          if (!ball) continue;
 
           if (ball.isShield || ball.isPurple) continue;
 
@@ -860,7 +873,7 @@ const BallDodgeGame = (): React.ReactElement => {
       });
     };
 
-    const updateAndDrawOtherBlasts = (ctx, currentTime, audioSystem) => {
+    const updateAndDrawOtherBlasts = (ctx: CanvasRenderingContext2D, _currentTime: number, audioSystem: AudioSystem) => {
       otherBlastsRef.current = otherBlastsRef.current.filter(blast => {
         blast.x += Math.cos(blast.angle) * blast.speed;
         blast.y += Math.sin(blast.angle) * blast.speed;
@@ -893,7 +906,7 @@ const BallDodgeGame = (): React.ReactElement => {
       });
     };
 
-    const updateAndDrawBalls = (ctx, audioSystem) => {
+    const updateAndDrawBalls = (ctx: CanvasRenderingContext2D, audioSystem: AudioSystem) => {
       ballsRef.current = ballsRef.current.filter(ball => {
         ball.update(canvas, playerRef);
         ball.draw(ctx);
@@ -983,7 +996,7 @@ const BallDodgeGame = (): React.ReactElement => {
       });
     };
 
-    const handlePlayerHit = (instant, audioSystem) => {
+    const handlePlayerHit = (instant: boolean, audioSystem: AudioSystem) => {
       // Invincibility powerup protects from all damage
       if (hasActivePowerup(GAME_CONFIG.POWERUP.TYPES.INVINCIBILITY)) {
         audioSystem.playHitSound();

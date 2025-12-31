@@ -1,51 +1,6 @@
 // ABOUTME: Particle system for visual effects
 // ABOUTME: Creates and manages particle effects for explosions and impacts
-
-interface MuzzleFlash {
-  x: number;
-  y: number;
-  angle: number;
-  spawnTime: number;
-}
-
-interface SmokeParticle {
-  x: number;
-  y: number;
-  vx: number;
-  vy: number;
-  size: number;
-  spawnTime: number;
-  life: number;
-}
-
-interface ImpactParticle {
-  x: number;
-  y: number;
-  vx: number;
-  vy: number;
-  size: number;
-  color: string;
-  spawnTime: number;
-  life: number;
-  isFlash?: boolean;
-}
-
-interface Explosion {
-  x: number;
-  y: number;
-  radius: number;
-  maxRadius: number;
-  growSpeed: number;
-  active: boolean;
-}
-
-interface DangerZone {
-  x: number;
-  y: number;
-  radius: number;
-  spawnTime: number;
-  warningTime: number;
-}
+import { MuzzleFlash, SmokeParticle, ImpactParticle, Explosion, DangerZone, Player } from '../types';
 
 interface Ball {
   id: string;
@@ -55,12 +10,6 @@ interface Ball {
   isShield: boolean;
   isPurple: boolean;
   isTracking?: boolean;
-}
-
-interface Player {
-  x: number;
-  y: number;
-  radius: number;
 }
 
 export const drawMuzzleFlashes = (ctx: CanvasRenderingContext2D, muzzleFlashesRef: { current: MuzzleFlash[] }, currentTime: number): void => {

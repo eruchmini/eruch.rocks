@@ -2,19 +2,7 @@
 // ABOUTME: Manages real-time communication and game state synchronization
 import { GAME_CONFIG } from '../constants';
 import { FallingBall } from '../classes/FallingBall';
-
-interface NetworkBallData {
-  id: string;
-  x: number;
-  y: number;
-  vx: number;
-  vy: number;
-  radius: number;
-  isShield: boolean;
-  isPurple: boolean;
-  isTracking: boolean;
-  isBouncing: boolean;
-}
+import { NetworkBallData } from '../types';
 
 interface BaseMessage {
   type: string;

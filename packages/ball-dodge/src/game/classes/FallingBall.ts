@@ -1,6 +1,7 @@
 // ABOUTME: FallingBall class representing enemy projectiles
 // ABOUTME: Handles ball physics, movement, and collision bounds
 import { GAME_CONFIG } from '../constants';
+import { Player, NetworkBallData } from '../types';
 
 export class FallingBall {
   id: string;
@@ -45,7 +46,7 @@ export class FallingBall {
     this.vy = isBouncing ? this.speed * 1.5 : this.speed;
   }
 
-  update(canvas: HTMLCanvasElement, playerRef: any): void {
+  update(canvas: HTMLCanvasElement, playerRef: { current: Player }): void {
     // Client-side interpolation for multiplayer balls
     if (this.serverX !== undefined && this.serverY !== undefined) {
       // Dead reckoning: extrapolate position based on velocity
@@ -119,7 +120,7 @@ export class FallingBall {
   }
 
   // Serialize for network transmission
-  toNetworkData(): any {
+  toNetworkData(): NetworkBallData {
     return {
       id: this.id,
       x: this.x,
@@ -136,7 +137,7 @@ export class FallingBall {
   }
 
   // Create from network data
-  static fromNetworkData(data: any, canvas: HTMLCanvasElement): FallingBall {
+  static fromNetworkData(data: NetworkBallData, canvas: HTMLCanvasElement): FallingBall {
     const ball = new FallingBall(
       1,
       data.isShield,
